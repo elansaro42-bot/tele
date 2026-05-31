@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transmisión programada de videos</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Canal TV</h1>
+    <p>Solo se mostrará el video en este canal.</p>
+  </header>
+
+  <main>
+    <section class="panel channel-panel">
+      <div class="channel-header">
+        <div class="channel-header-left">
+          <span class="channel-name">Canal TV 24/7</span>
+          <span id="current-time" class="channel-time">--:--</span>
+        </div>
+      </div>
+      <div id="channel-status" class="channel-status">
+        <p>No hay video en vivo. El contenido se reproducirá aquí cuando sea su hora.</p>
+      </div>
+    </section>
+
+    <section class="panel admin-login-panel" id="admin-login-panel">
+      <h2>Acceso de administrador</h2>
+      <label>
+        Contraseña
+        <input type="password" id="admin-password" placeholder="Contraseña de administrador" />
+      </label>
+      <button id="admin-login-btn" type="button">Entrar como administrador</button>
+      <p class="hint">Solo tú puedes ver el formulario de programación y los programas guardados.</p>
+    </section>
+
+    <section class="panel admin-panel hidden" id="admin-panel">
+      <div class="admin-bar">
+        <div>
+          <span class="admin-label">Modo administrador</span>
+          <p class="hint">Ahora puedes agregar y editar programas.</p>
+        </div>
+        <button id="admin-logout-btn" type="button" class="secondary hidden">Cerrar sesión</button>
+      </div>
+      <p id="admin-welcome-text" class="hint">Añade tu programación y controla lo que se transmite en vivo.</p>
+      <button id="toggle-schedule-content" type="button" class="accordion-button">
+        Programar contenido <span class="accordion-icon">▼</span>
+      </button>
+      <div id="schedule-content" class="accordion-content hidden">
+        <form id="schedule-form">
+          <label>
+            Título
+            <input type="text" id="title" placeholder="Nombre del video" required />
+          </label>
+
+        <label>
+          URL o enlace de video
+          <input type="text" id="video-url" placeholder="https://..." />
+          <small>Ejemplo: YouTube, Vimeo, MP4, WEBM o cualquier enlace de video</small>
+        </label>
+
+        <label>
+          Adjuntar video
+          <input type="file" id="video-file" accept="video/*" />
+        </label>
+
+        <label>
+          Fecha
+          <input type="date" id="date" required />
+        </label>
+
+        <label>
+          Hora
+          <input type="time" id="time" required />
+        </label>
+
+        <p class="hint">Puedes usar una URL o adjuntar un archivo de video. El video adjuntado funciona en esta sesión.</p>
+
+        <button type="submit">Guardar programación</button>
+      </form>
+
+      <section class="panel schedule">
+        <h2>Programaciones</h2>
+        <div id="schedule-list" class="schedule-list"></div>
+      </section>
+    </div>
+    </section>
+
+    <section class="panel player-panel">
+      <h2>Video en vivo</h2>
+      <div id="player-area" class="player-area">
+        <div id="live-badge" class="live-badge hidden">En vivo</div>
+        <p>No hay video en vivo. El contenido se reproducirá aquí cuando sea su hora.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
