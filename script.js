@@ -13,7 +13,12 @@ const adminLoginBtn = document.getElementById('admin-login-btn');
 const adminLogoutBtn = document.getElementById('admin-logout-btn');
 const toggleScheduleButton = document.getElementById('toggle-schedule-content');
 const scheduleContent = document.getElementById('schedule-content');
+const dateInput = document.getElementById('date');
+const addDateBtn = document.getElementById('add-date-btn');
+const selectedDatesHiddenInput = document.getElementById('selected-dates');
+const selectedDatesList = document.getElementById('selected-dates-list');
 const STORAGE_KEY = 'videoScheduleItems';
+
 const ADMIN_KEY = 'tvAdminAccess';
 const ADMIN_PASSWORD = 'german';
 const fileSources = new Map();
@@ -36,6 +41,9 @@ updateActiveTransmission();
 updateCurrentTime();
 setInterval(updateActiveTransmission, 1000);
 setInterval(updateCurrentTime, 1000);
+
+initializeMultiDatePicker();
+
 
 window.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() !== 'f') {
@@ -98,33 +106,69 @@ adminLogoutBtn.addEventListener('click', () => {
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
+
   const title = document.getElementById('title').value.trim();
   const videoUrl = document.getElementById('video-url').value.trim();
-  const date = document.getElementById('date').value;
-  const time = document.getElementById('time').value;
+  const dateInput = document.getElementById('date');
+  const selectedDatesStr = document.getElementById('selected-dates').value;
+  const selectedDates = selectedDatesStr
+    ? selectedDatesStr.split(',').map((d) => d.trim()).filter(Boolean)
+    : [];
+  const timeStart = document.getElementById('time-start').value;
+  const timeEnd = document.getElementById('time-end').value;
+
   const file = fileInput.files[0];
 
-  if (!title || (!videoUrl && !file) || !date || !time) {
+  if (!title || (!videoUrl && !file) || selectedDates.length === 0 || !timeStart || !timeEnd) {
     return;
   }
 
-  const datetime = new Date(`${date}T${time}`);
-  const id = Date.now().toString();
-  const item = {
-    id,
-    title,
-    type: file ? 'file' : 'url',
-    url: file ? '' : videoUrl,
-    fileName: file ? file.name : '',
-    datetime: datetime.toISOString(),
-    createdAt: new Date().toISOString(),
-  };
+  const startTime = timeStart;
+  const endTime = timeEnd;
 
-  if (file) {
-    fileSources.set(id, URL.createObjectURL(file));
+  // Validación simple: hora fin debe ser mayor o igual a hora inicio.
+  // (Asumimos mismo día por evento: si quieres cruzar medianoche, habría que ampliar el modelo.)
+  const startMinutes = parseInt(startTime.split(':')[0], 10) * 60 + parseInt(startTime.split(':')[1], 10);
+  const endMinutes = parseInt(endTime.split(':')[0], 10) * 60 + parseInt(endTime.split(':')[1], 10);
+  if (Number.isNaN(startMinutes) || Number.isNaN(endMinutes) || endMinutes < startMinutes) {
+    alert('La hora fin debe ser mayor o igual que la hora inicio.');
+    return;
   }
 
-  scheduleItems.push(item);
+  // Crea un ítem por cada fecha seleccionada.
+  const newItems = selectedDates.map((date) => {
+    const startDatetime = new Date(`${date}T${startTime}`);
+    const id = `${Date.now().toString()}-${date}-${startTime}`;
+    return {
+      id,
+      title,
+      type: file ? 'file' : 'url',
+      url: file ? '' : videoUrl,
+      fileName: file ? file.name : '',
+      datetime: startDatetime.toISOString(),
+      endDatetime: new Date(`${date}T${endTime}`).toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+  });
+
+
+  // (El objURL se genera por ítem dentro del bloque newItemsforEach)
+
+
+  // Inserta los nuevos ítems (uno por fecha)
+  newItems.forEach((it) => {
+    scheduleItems.push(it);
+
+    if (file) {
+      // Una URL por ítem para que el revoke al borrar funcione correctamente.
+      fileSources.set(it.id, URL.createObjectURL(file));
+    }
+  });
+
+  // Limpia selección de fechas para reflejar correctamente el estado tras guardar.
+  if (selectedDatesHiddenInput) selectedDatesHiddenInput.value = '';
+  if (selectedDatesList) selectedDatesList.innerHTML = '';
+  if (dateInput) dateInput.value = '';
 
   scheduleItems.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
   saveSchedule();
@@ -183,8 +227,9 @@ function renderSchedule() {
     itemElement.className = 'schedule-item';
 
     const date = new Date(item.datetime);
-    const end = new Date(date.getTime() + 1000 * 60 * 60);
+    const end = item.endDatetime ? new Date(item.endDatetime) : new Date(date.getTime() + 1000 * 60 * 60);
     const isActive = now >= date && now < end;
+
 
     if (isActive) {
       itemElement.classList.add('current');
@@ -202,9 +247,11 @@ function renderSchedule() {
     itemElement.innerHTML = `
       <strong>${item.title}</strong>
       ${isActive ? '<span class="current-label">EN VIVO</span>' : ''}
-      <small>Hora: ${formatted}</small>
+      <small>Inicio: ${formatted}</small>
+      ${item.endDatetime ? `<small>Fin: ${new Date(item.endDatetime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small>` : ''}
       ${item.type === 'file' ? `<small>Archivo: ${item.fileName}</small>` : ''}
       ${item.type === 'file' && !fileSources.has(item.id) ? '<small>(adjunto disponible solo en esta sesión)</small>' : ''}
+
       <div class="schedule-actions">
         <button type="button" class="delete-button" data-id="${item.id}">Eliminar</button>
       </div>
@@ -244,8 +291,12 @@ function updateActiveTransmission() {
   }
 
   const activeItems = scheduleItems
-    .map((item) => ({ item, start: new Date(item.datetime) }))
-    .filter(({ start }) => start <= now)
+    .map((item) => ({
+      item,
+      start: new Date(item.datetime),
+      end: item.endDatetime ? new Date(item.endDatetime) : new Date(new Date(item.datetime).getTime() + 1000 * 60 * 60),
+    }))
+    .filter(({ start, end }) => start <= now && now < end)
     .sort((a, b) => b.start - a.start);
 
   const activeItem = activeItems.length > 0 ? activeItems[0].item : null;
@@ -304,17 +355,30 @@ function createPlayerForItem(item, offsetSeconds = 0) {
     video.setAttribute('aria-label', 'Video en vivo');
     video.controls = false;
     video.style.pointerEvents = 'none';
-    video.src = fileUrl;
+
+    // Reinicio explícito para evitar estados raros al recargar.
     video.autoplay = true;
     video.muted = false;
     video.volume = 1;
     video.playsInline = true;
     video.preload = 'auto';
+    video.src = fileUrl;
+
+    // Forzamos a que se intente reproducir cuando haya metadata.
     video.addEventListener('loadedmetadata', () => {
       if (offsetSeconds > 0 && offsetSeconds < video.duration) {
         video.currentTime = offsetSeconds;
       }
+
+      // Reintenta play (algunos navegadores lo bloquean si llega tarde).
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          // No hacemos nada; la reproducción puede requerir interacción.
+        });
+      }
     });
+
     return video;
   }
 
@@ -322,10 +386,9 @@ function createPlayerForItem(item, offsetSeconds = 0) {
 }
 
 function cleanupPastItems(now) {
-  const oneHourMillis = 1000 * 60 * 60;
   const validItems = scheduleItems.filter((item) => {
-    const start = new Date(item.datetime).getTime();
-    return now.getTime() <= start + oneHourMillis;
+    const end = item.endDatetime ? new Date(item.endDatetime).getTime() : new Date(new Date(item.datetime).getTime() + 1000 * 60 * 60).getTime();
+    return now.getTime() < end;
   });
 
   const removedAny = validItems.length !== scheduleItems.length;
@@ -346,16 +409,29 @@ function cleanupPastItems(now) {
 function createPlayerForUrl(url, offsetSeconds = 0) {
   if (isYouTubeUrl(url)) {
     const videoId = extractYouTubeId(url);
+    if (!videoId) {
+      const message = document.createElement('p');
+      message.textContent = 'No se pudo detectar el ID de YouTube desde el enlace. Asegúrate de pegar una URL válida.';
+      return message;
+    }
+
+    // offsetSeconds debe ser un entero válido para que YouTube no falle.
+    const start = Number.isFinite(offsetSeconds) ? Math.max(0, Math.floor(offsetSeconds)) : 0;
+
     const iframe = document.createElement('iframe');
     iframe.title = '';
     iframe.setAttribute('aria-label', 'Video en vivo');
     iframe.style.pointerEvents = 'none';
-    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&controls=0&start=${offsetSeconds}`;
-    iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+
+    // Nota: para autoplay en navegadores modernos, suele funcionar mejor con mute=1.
+    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&controls=0&start=${start}`;
+    iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
     iframe.allowFullscreen = true;
     return iframe;
   }
 
+
+  // Vimeo
   if (isVimeoUrl(url)) {
     const videoId = extractVimeoId(url);
     const iframe = document.createElement('iframe');
@@ -448,11 +524,112 @@ function isDirectVideoUrl(url) {
 }
 
 function extractYouTubeId(url) {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([A-Za-z0-9_-]{11})/i);
-  return match ? match[1] : '';
+  if (!url) return '';
+
+  // 1) youtu.be/<id>
+  let match = url.match(/(?:youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+  if (match) return match[1];
+
+  // 2) youtube.com/watch?v=<id>&...
+  match = url.match(/[?&]v=([A-Za-z0-9_-]{11})/i);
+  if (match) return match[1];
+
+  // 3) youtube.com/embed/<id>
+  match = url.match(/(?:youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/i);
+  if (match) return match[1];
+
+  // 4) youtube.com/shorts/<id>
+  match = url.match(/(?:youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/i);
+  if (match) return match[1];
+
+  // 5) youtube.com/v/<id>
+  match = url.match(/(?:youtube\.com\/v\/)([A-Za-z0-9_-]{11})/i);
+  if (match) return match[1];
+
+  return '';
 }
+
 
 function extractVimeoId(url) {
   const match = url.match(/(?:vimeo\.com\/)([0-9]+)/i);
   return match ? match[1] : '';
 }
+
+function initializeMultiDatePicker() {
+  if (!dateInput || !addDateBtn || !selectedDatesHiddenInput || !selectedDatesList) {
+    return;
+  }
+
+  /** @type {string[]} */
+  let selectedDates = [];
+
+  const loadFromHidden = () => {
+    const raw = selectedDatesHiddenInput.value;
+    if (!raw) {
+      selectedDates = [];
+      return;
+    }
+    selectedDates = raw.split(',').map((d) => d.trim()).filter(Boolean);
+  };
+
+  const saveToHidden = () => {
+    selectedDatesHiddenInput.value = selectedDates.join(',');
+  };
+
+  const formatDateForList = (isoDate) => {
+    const d = new Date(`${isoDate}T00:00:00`);
+    // dd/mm/yyyy (es-ES)
+    return d.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  };
+
+  const render = () => {
+    selectedDatesList.innerHTML = '';
+    if (selectedDates.length === 0) {
+      selectedDatesList.innerHTML = '<span class="hint">No hay fechas seleccionadas.</span>';
+      return;
+    }
+
+    selectedDates.forEach((isoDate) => {
+      const chip = document.createElement('div');
+      chip.className = 'selected-date-chip';
+      chip.innerHTML = `
+        <span class="selected-date-text">${formatDateForList(isoDate)}</span>
+        <button type="button" class="selected-date-remove" data-date="${isoDate}" aria-label="Eliminar fecha">✕</button>
+      `;
+
+      const removeBtn = chip.querySelector('.selected-date-remove');
+      removeBtn.addEventListener('click', () => {
+        selectedDates = selectedDates.filter((d) => d !== isoDate);
+        saveToHidden();
+        render();
+      });
+
+      selectedDatesList.appendChild(chip);
+    });
+  };
+
+  loadFromHidden();
+  render();
+
+  addDateBtn.addEventListener('click', () => {
+    const value = dateInput.value;
+    if (!value) return;
+    if (!selectedDates.includes(value)) {
+      selectedDates.push(value);
+      selectedDates.sort();
+      saveToHidden();
+      render();
+    }
+    dateInput.value = '';
+    dateInput.focus();
+  });
+
+  dateInput.addEventListener('change', () => {
+    // Permite añadir automáticamente al cambiar (mejor UX).
+    // Si no se desea, se puede comentar estas líneas.
+    if (dateInput.value) {
+      addDateBtn.click();
+    }
+  });
+}
+

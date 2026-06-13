@@ -212,6 +212,78 @@ input[type="time"] {
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 
+fieldset.field {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+fieldset.field legend {
+  padding: 0 10px;
+  color: #e2e8f0;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.date-picker-row {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+
+.date-picker-row #add-date-btn {
+  white-space: nowrap;
+}
+
+.time-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.selected-dates-container {
+  display: grid;
+  gap: 10px;
+}
+
+.selected-dates-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.selected-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.14);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+}
+
+.selected-date-text {
+  font-weight: 700;
+  color: #e5e7eb;
+  font-size: 0.92rem;
+}
+
+.selected-date-remove {
+  border: none;
+  background: transparent;
+  color: #93c5fd;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.selected-date-remove:hover {
+  color: #bfdbfe;
+}
+
+
 input[type="text"]:focus,
 input[type="url"]:focus,
 input[type="date"]:focus,

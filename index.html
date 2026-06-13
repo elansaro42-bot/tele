@@ -65,15 +65,34 @@
           <input type="file" id="video-file" accept="video/*" />
         </label>
 
-        <label>
-          Fecha
-          <input type="date" id="date" required />
-        </label>
+        <fieldset class="field">
+          <legend>Fecha (selección múltiple)</legend>
 
-        <label>
-          Hora
-          <input type="time" id="time" required />
-        </label>
+          <div class="date-picker-row">
+            <input type="date" id="date" />
+            <button type="button" id="add-date-btn" class="secondary">Añadir</button>
+          </div>
+
+          <div class="selected-dates-container">
+            <input type="hidden" id="selected-dates" name="selected-dates" />
+            <div class="selected-dates-list" id="selected-dates-list" aria-live="polite"></div>
+          </div>
+          <small class="hint">Selecciona una o más fechas. Se programará el mismo contenido en todas ellas.</small>
+
+        </fieldset>
+
+        <div class="time-range-row">
+          <label>
+            Hora inicio
+            <input type="time" id="time-start" required />
+          </label>
+
+          <label>
+            Hora fin
+            <input type="time" id="time-end" required />
+          </label>
+        </div>
+
 
         <p class="hint">Puedes usar una URL o adjuntar un archivo de video. El video adjuntado funciona en esta sesión.</p>
 
