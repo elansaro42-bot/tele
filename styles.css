@@ -397,6 +397,32 @@ button:hover {
   letter-spacing: 0.04em;
 }
 
+.next-program-banner {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 26;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  color: #e6eef8;
+  font-size: 1rem;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+  text-align: center;
+}
+
+.next-program-banner span {
+  color: #93c5fd;
+  font-weight: 900;
+}
+
+
+
+
+
 .player-area iframe,
 .player-area video {
   width: 100%;

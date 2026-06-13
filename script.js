@@ -4,6 +4,7 @@ const playerArea = document.getElementById('player-area');
 const channelStatus = document.getElementById('channel-status');
 const currentTimeDisplay = document.getElementById('current-time');
 const liveBadge = document.getElementById('live-badge');
+const nextProgramBanner = document.getElementById('next-program-banner');
 const fileInput = document.getElementById('video-file');
 const adminLoginPanel = document.getElementById('admin-login-panel');
 const adminPanel = document.getElementById('admin-panel');
@@ -273,7 +274,65 @@ function renderSchedule() {
   });
 }
 
+function maybeUpdateNextProgramBanner(now = new Date()) {
+  if (!nextProgramBanner) return;
+
+  // Obtener programa activo en este instante
+  const activeItems = scheduleItems
+    .map((item) => ({
+      item,
+      start: new Date(item.datetime),
+      end: item.endDatetime ? new Date(item.endDatetime) : new Date(new Date(item.datetime).getTime() + 1000 * 60 * 60),
+    }))
+    .filter(({ start, end }) => start <= now && now < end)
+    .sort((a, b) => b.start - a.start);
+
+  const activeItem = activeItems.length > 0 ? activeItems[0].item : null;
+  if (!activeItem) {
+    nextProgramBanner.classList.add('hidden');
+    return;
+  }
+
+  const activeEnd = activeItem.endDatetime ? new Date(activeItem.endDatetime) : new Date(new Date(activeItem.datetime).getTime() + 1000 * 60 * 60);
+  const msToEnd = activeEnd.getTime() - now.getTime();
+
+  // Mostrar 5 min antes, ocultar 1 min después de que termine (ventana: -5min a +1min)
+  const showStartMs = 5 * 60 * 1000;
+  const hideAfterMs = 1 * 60 * 1000;
+
+  const shouldShow = msToEnd <= showStartMs && msToEnd >= -hideAfterMs;
+
+  if (!shouldShow) {
+    nextProgramBanner.classList.add('hidden');
+    return;
+  }
+
+  const nextItem = scheduleItems
+    .map((item) => ({
+      item,
+      start: new Date(item.datetime),
+    }))
+    .filter(({ start }) => start.getTime() >= activeEnd.getTime())
+    .sort((a, b) => a.start - b.start)[0]?.item;
+
+  const nextTitle = nextItem ? nextItem.title : '—';
+  nextProgramBanner.innerHTML = `A continuación: <span>${escapeHtml(nextTitle)}</span>`;
+  nextProgramBanner.classList.remove('hidden');
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '<')
+    .replaceAll('>', '>')
+    .replaceAll('"', '"')
+
+
+    .replaceAll("'", '&#039;');
+}
+
 function updateCurrentTime() {
+
   const now = new Date();
   const formatted = now.toLocaleTimeString('es-ES', {
     hour: '2-digit',
@@ -290,7 +349,13 @@ function updateActiveTransmission() {
     renderSchedule();
   }
 
+  // Program-next banner (5 minutos antes)
+  // (Se actualiza en paralelo para que no dependa del tipo de reproductor)
+  maybeUpdateNextProgramBanner(now);
+
   const activeItems = scheduleItems
+
+
     .map((item) => ({
       item,
       start: new Date(item.datetime),
