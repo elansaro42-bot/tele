@@ -366,6 +366,9 @@ function createPlayerForItem(item, offsetSeconds = 0) {
 
     // Forzamos a que se intente reproducir cuando haya metadata.
     video.addEventListener('loadedmetadata', () => {
+      // Mantener audio activo al recargar/reiniciar reproductor.
+      video.muted = false;
+      video.volume = 1;
       if (offsetSeconds > 0 && offsetSeconds < video.duration) {
         video.currentTime = offsetSeconds;
       }
