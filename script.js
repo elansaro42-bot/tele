@@ -415,19 +415,17 @@ function createPlayerForUrl(url, offsetSeconds = 0) {
       return message;
     }
 
-    // offsetSeconds debe ser un entero válido para que YouTube no falle.
-    const start = Number.isFinite(offsetSeconds) ? Math.max(0, Math.floor(offsetSeconds)) : 0;
+    const start = offsetSeconds;
 
     const iframe = document.createElement('iframe');
     iframe.title = '';
     iframe.setAttribute('aria-label', 'Video en vivo');
     iframe.style.pointerEvents = 'none';
-
-    // Nota: para autoplay en navegadores modernos, suele funcionar mejor con mute=1.
-    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&controls=0&start=${start}`;
-    iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&controls=0&start=${start}`;
+    iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     iframe.allowFullscreen = true;
     return iframe;
+
   }
 
 
@@ -459,6 +457,15 @@ function createPlayerForUrl(url, offsetSeconds = 0) {
     video.addEventListener('loadedmetadata', () => {
       if (offsetSeconds > 0 && offsetSeconds < video.duration) {
         video.currentTime = offsetSeconds;
+      }
+
+      // Asegura continuidad tras recargar/re-render: intentar iniciar reproducción.
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          // Si el navegador bloquea autoplay, el usuario podrá iniciar manualmente.
+          // Pero mantenemos volumen/estado como pediste.
+        });
       }
     });
     return video;
