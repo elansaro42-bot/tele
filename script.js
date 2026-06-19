@@ -19,6 +19,10 @@ const selectedDatesHiddenInput = document.getElementById('selected-dates');
 const selectedDatesList = document.getElementById('selected-dates-list');
 const STORAGE_KEY = 'videoScheduleItems';
 
+const titleInput = document.getElementById('title');
+const videoUrlInput = document.getElementById('video-url');
+const titleAutofillHint = document.getElementById('title-autofill-hint');
+
 const ADMIN_KEY = 'tvAdminAccess';
 const ADMIN_PASSWORD = 'german';
 const fileSources = new Map();
@@ -44,6 +48,7 @@ setInterval(updateCurrentTime, 1000);
 
 initializeMultiDatePicker();
 
+setupTitleAutofill();
 
 window.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() !== 'f') {
@@ -95,9 +100,10 @@ adminLoginBtn.addEventListener('click', () => {
   if (password === ADMIN_PASSWORD) {
     setAdminMode(true);
   } else {
-    alert('Contraseña incorrecta');
+    alert('Uy, contraseña incorrecta 😅. Vuelve a intentar.');
   }
 });
+
 
 adminLogoutBtn.addEventListener('click', () => {
   setAdminMode(false);
@@ -120,8 +126,10 @@ form.addEventListener('submit', (event) => {
   const file = fileInput.files[0];
 
   if (!title || (!videoUrl && !file) || selectedDates.length === 0 || !timeStart || !timeEnd) {
+    alert('Falta algo en el formulario: título, enlace/archivo, fechas y horas.');
     return;
   }
+
 
   const startTime = timeStart;
   const endTime = timeEnd;
@@ -134,6 +142,7 @@ form.addEventListener('submit', (event) => {
     alert('La hora fin debe ser mayor o igual que la hora inicio.');
     return;
   }
+
 
   // Crea un ítem por cada fecha seleccionada.
   const newItems = selectedDates.map((date) => {
@@ -483,9 +492,10 @@ function createPlayerForUrl(url, offsetSeconds = 0) {
 
 function shareVideoLink(item) {
   if (!item.url) {
-    alert('No hay enlace de video disponible para compartir.');
+    alert('Parce, no hay enlace de video para compartir por aquí.');
     return;
   }
+
 
   const shareData = {
     title: item.title,
@@ -560,6 +570,91 @@ function extractYouTubeId(url) {
 function extractVimeoId(url) {
   const match = url.match(/(?:vimeo\.com\/)([0-9]+)/i);
   return match ? match[1] : '';
+}
+
+function setupTitleAutofill() {
+  if (!titleInput || !videoUrlInput) return;
+  if (!titleAutofillHint) return;
+
+  let lastHandledUrl = '';
+  let manualTitle = titleInput.value.trim().length > 0;
+
+  const markManual = () => {
+    manualTitle = true;
+  };
+
+  titleInput.addEventListener('input', markManual);
+
+  const setLoading = (loading) => {
+    if (!titleAutofillHint) return;
+    titleAutofillHint.textContent = loading
+      ? 'Buscando el título del video...'
+      : 'Si pegas un enlace, intentaremos poner el título automáticamente.';
+  };
+
+  const trySetTitleFromUrl = async () => {
+    const url = (videoUrlInput.value || '').trim();
+    if (!url || url === lastHandledUrl) return;
+    lastHandledUrl = url;
+
+    if (manualTitle) return;
+
+    setLoading(true);
+    titleInput.value = '';
+
+    try {
+      // YouTube oEmbed (sin API key)
+      const ytMatch = extractYouTubeId(url);
+      if (ytMatch) {
+        const api = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytMatch}`)}&format=json`;
+        const res = await fetch(api);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.title) {
+            titleInput.value = String(data.title);
+            manualTitle = true;
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Vimeo oEmbed
+      const vimeoMatch = extractVimeoId(url);
+      if (vimeoMatch) {
+        const api = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${vimeoMatch}`)}`;
+        const res = await fetch(api);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.title) {
+            titleInput.value = String(data.title);
+            manualTitle = true;
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Si no se pudo, mantenemos el título vacío para que el admin lo complete manual.
+    } catch (e) {
+      // Silent: no queremos bloquear el flujo.
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  let t = null;
+  videoUrlInput.addEventListener('input', () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => {
+      trySetTitleFromUrl();
+    }, 600);
+  });
+
+  // Si el admin pega el enlace y el título ya está vacío, intentamos una vez al salir del campo.
+  videoUrlInput.addEventListener('blur', () => {
+    trySetTitleFromUrl();
+  });
 }
 
 function initializeMultiDatePicker() {

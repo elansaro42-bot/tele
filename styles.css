@@ -1,11 +1,14 @@
 :root {
   font-family: Inter, system-ui, sans-serif;
-  background: radial-gradient(circle at top left, rgba(32, 143, 171, 0.14), transparent 22%),
-    radial-gradient(circle at bottom right, rgba(67, 56, 202, 0.12), transparent 20%),
+  /* Estilo Colombia: amarillo/azul/rojo con fondo oscuro */
+  background: radial-gradient(circle at top left, rgba(250, 204, 21, 0.18), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.16), transparent 20%),
+    radial-gradient(circle at 20% 70%, rgba(239, 68, 68, 0.12), transparent 25%),
     #07121f;
   color: #e6eef8;
-  accent-color: #60a5fa;
+  accent-color: #2563eb;
 }
+
 
 * {
   box-sizing: border-box;
@@ -38,12 +41,16 @@ main {
 }
 
 .panel {
-  background: rgba(15, 23, 42, 0.88);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(250, 204, 21, 0.08), transparent 32%),
+    radial-gradient(circle at 85% 20%, rgba(37, 99, 235, 0.10), transparent 28%),
+    rgba(15, 23, 42, 0.88);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.18);
   border-radius: 28px;
   padding: 26px;
 }
+
 
 .channel-panel {
   display: grid;
@@ -65,14 +72,16 @@ main {
   flex-wrap: wrap;
 }
 
-.channel-time {
+ .channel-time {
   font-size: 0.95rem;
-  color: #f8fafc;
-  background: rgba(88, 105, 255, 0.14);
+  color: #0b1220;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.95), rgba(245, 158, 11, 0.85));
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(88, 105, 255, 0.28);
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  box-shadow: 0 10px 22px rgba(250, 204, 21, 0.14);
 }
+
 
 .channel-name {
   font-size: 1.25rem;
@@ -93,11 +102,26 @@ main {
   display: grid;
   gap: 10px;
   background: linear-gradient(180deg, rgba(8, 19, 41, 0.96), rgba(9, 30, 57, 0.82));
-  border: 1px solid rgba(96, 165, 250, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.22);
   border-radius: 24px;
   padding: 22px 24px;
   max-width: 100%;
+  position: relative;
 }
+
+.channel-status::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(250, 204, 21, 0.18), transparent 30%),
+    linear-gradient(270deg, rgba(239, 68, 68, 0.14), transparent 35%);
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+
 
 .channel-status p {
   margin: 0;
@@ -163,14 +187,17 @@ button.secondary {
   gap: 10px;
   padding: 14px 18px;
   border-radius: 18px;
-  border: 1px solid rgba(96, 165, 250, 0.25);
-  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  background:
+    linear-gradient(135deg, rgba(250, 204, 21, 0.10), rgba(37, 99, 235, 0.10)),
+    rgba(15, 23, 42, 0.92);
   color: #e6eef8;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
+
 
 .accordion-button:hover {
   background: rgba(15, 23, 42, 1);
@@ -259,9 +286,12 @@ fieldset.field legend {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.28);
+  /* Más Colombia: amarillo + azul + un toque rojo */
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.20), rgba(37, 99, 235, 0.16), rgba(239, 68, 68, 0.12));
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.10);
 }
+
 
 .selected-date-text {
   font-weight: 700;
@@ -289,22 +319,26 @@ input[type="url"]:focus,
 input[type="date"]:focus,
 input[type="time"]:focus {
   outline: none;
-  border-color: rgba(56, 189, 248, 0.55);
+  border-color: rgba(250, 204, 21, 0.7);
+  box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.12);
   background: rgba(255, 255, 255, 0.09);
 }
+
 
 button {
   cursor: pointer;
   border: none;
   border-radius: 999px;
   padding: 14px 22px;
-  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
-  color: #f8fafc;
-  font-weight: 700;
+  /* Amarillo + Azul con toque rojo */
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.98) 0%, rgba(37, 99, 235, 0.98) 55%, rgba(239, 68, 68, 0.95) 100%);
+  color: #081018;
+  font-weight: 800;
   letter-spacing: 0.02em;
-  box-shadow: 0 18px 35px rgba(14, 165, 233, 0.16);
+  box-shadow: 0 18px 35px rgba(37, 99, 235, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
 
 button:hover {
   transform: translateY(-1px);
@@ -390,12 +424,16 @@ button:hover {
   z-index: 10;
   padding: 10px 14px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #dc2626, #ef4444);
-  color: #ffffff;
+  /* Rojo con toque amarillo */
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.98), rgba(250, 204, 21, 0.92));
+  color: #0b1220;
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: 0.04em;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 18px 40px rgba(239, 68, 68, 0.16);
 }
+
 
 .player-area iframe,
 .player-area video {
