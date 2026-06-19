@@ -8,21 +8,24 @@
 </head>
 <body>
   <header>
-    <h1>Canal TV</h1>
+    <h1>Canal Colombia 🇨🇴</h1>
     <p>Solo se mostrará el video en este canal.</p>
+
   </header>
 
   <main>
     <section class="panel channel-panel">
       <div class="channel-header">
         <div class="channel-header-left">
-          <span class="channel-name">Canal TV 24/7</span>
+          <span class="channel-name">Canal Colombia 24/7</span>
+
           <span id="current-time" class="channel-time">--:--</span>
         </div>
       </div>
       <div id="channel-status" class="channel-status">
-        <p>No hay video en vivo. El contenido se reproducirá aquí cuando sea su hora.</p>
+        <p>Ahora no hay transmisión en vivo. Cuando sea la hora, aquí sale el contenido 💛💙❤️.</p>
       </div>
+
     </section>
 
     <section class="panel admin-login-panel" id="admin-login-panel">
@@ -52,6 +55,7 @@
           <label>
             Título
             <input type="text" id="title" placeholder="Nombre del video" required />
+            <small class="hint" id="title-autofill-hint">Si pegas un enlace, intentaremos poner el título automáticamente.</small>
           </label>
 
         <label>
@@ -110,10 +114,10 @@
       <h2>Video en vivo</h2>
       <div id="player-area" class="player-area">
         <div id="live-badge" class="live-badge hidden">En vivo</div>
-        <div id="next-program-banner" class="next-program-banner hidden" aria-live="polite"></div>
-        <p>No hay video en vivo. El contenido se reproducirá aquí cuando sea su hora.</p>
+        <p>Sin transmisión en vivo por ahora. Cuando llegue la programación, ¡arranca acá! 🇨🇴</p>
       </div>
     </section>
+
   </main>
 
   <footer>

@@ -4,7 +4,6 @@ const playerArea = document.getElementById('player-area');
 const channelStatus = document.getElementById('channel-status');
 const currentTimeDisplay = document.getElementById('current-time');
 const liveBadge = document.getElementById('live-badge');
-const nextProgramBanner = document.getElementById('next-program-banner');
 const fileInput = document.getElementById('video-file');
 const adminLoginPanel = document.getElementById('admin-login-panel');
 const adminPanel = document.getElementById('admin-panel');
@@ -19,6 +18,10 @@ const addDateBtn = document.getElementById('add-date-btn');
 const selectedDatesHiddenInput = document.getElementById('selected-dates');
 const selectedDatesList = document.getElementById('selected-dates-list');
 const STORAGE_KEY = 'videoScheduleItems';
+
+const titleInput = document.getElementById('title');
+const videoUrlInput = document.getElementById('video-url');
+const titleAutofillHint = document.getElementById('title-autofill-hint');
 
 const ADMIN_KEY = 'tvAdminAccess';
 const ADMIN_PASSWORD = 'german';
@@ -39,13 +42,13 @@ if (toggleScheduleButton && scheduleContent) {
 let scheduleItems = loadSchedule();
 renderSchedule();
 updateActiveTransmission();
-let editingId = null;
 updateCurrentTime();
 setInterval(updateActiveTransmission, 1000);
 setInterval(updateCurrentTime, 1000);
 
 initializeMultiDatePicker();
 
+setupTitleAutofill();
 
 window.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() !== 'f') {
@@ -97,9 +100,10 @@ adminLoginBtn.addEventListener('click', () => {
   if (password === ADMIN_PASSWORD) {
     setAdminMode(true);
   } else {
-    alert('Contraseña incorrecta');
+    alert('Uy, contraseña incorrecta 😅. Vuelve a intentar.');
   }
 });
+
 
 adminLogoutBtn.addEventListener('click', () => {
   setAdminMode(false);
@@ -107,6 +111,7 @@ adminLogoutBtn.addEventListener('click', () => {
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
+
 
   const title = document.getElementById('title').value.trim();
   const videoUrl = document.getElementById('video-url').value.trim();
@@ -120,90 +125,14 @@ form.addEventListener('submit', (event) => {
 
   const file = fileInput.files[0];
 
-  // Modo edición: si editamos un ítem que ya tenía URL, no requerimos volver a pegar archivo/enlace.
-  const isEditing = editingId !== null;
-  if (isEditing) {
-    // Permitir edición aunque no se seleccione archivo/enlace (se conserva el original si no hay cambios).
-    if (!title || selectedDates.length === 0 || !timeStart || !timeEnd) {
-      return;
-    }
-  } else {
-    if (!title || (!videoUrl && !file) || selectedDates.length === 0 || !timeStart || !timeEnd) {
-      return;
-    }
+  if (!title || (!videoUrl && !file) || selectedDates.length === 0 || !timeStart || !timeEnd) {
+    alert('Falta algo en el formulario: título, enlace/archivo, fechas y horas.');
+    return;
   }
+
 
   const startTime = timeStart;
   const endTime = timeEnd;
-
-  // Si estamos editando, actualizamos los ítems que coincidan con el grupo de fechas/campos
-  // (mismo título + misma hora de inicio). Esto “edita todos los detalles” como se pidió.
-  if (editingId) {
-    const editingItem = scheduleItems.find((x) => x.id === editingId);
-    if (editingItem) {
-      const startHHmm = new Date(editingItem.datetime).toISOString().slice(11, 16);
-      const group = scheduleItems.filter((x) => x.title === editingItem.title && new Date(x.datetime).toISOString().slice(11, 16) === startHHmm);
-
-      // Reemplazamos cada ítem del grupo por una versión actualizada según el set de fechas seleccionado
-      // Manteniendo el orden y el tipo. Si el usuario no pegó URL/archivo, conservamos lo existente.
-      const newType = file ? 'file' : (videoUrl ? 'url' : editingItem.type);
-
-      group.forEach((oldIt) => {
-        if (newType === 'file') {
-          // Si es archivo, no hay persistencia entre recargas; usamos el archivo de esta sesión.
-          // (Si no hay archivo, no entra aquí.)
-          if (file) {
-            oldIt.type = 'file';
-            oldIt.fileName = file.name;
-          }
-        }
-
-        if (newType === 'url') {
-          oldIt.type = 'url';
-          oldIt.url = videoUrl || oldIt.url;
-          oldIt.fileName = '';
-        }
-
-        oldIt.title = title;
-      });
-
-      // Actualizar datetime/endDatetime de los ítems del grupo usando selectedDates
-      // Si el usuario cambió el set de fechas, ajustamos: creamos o eliminamos para que cuadre.
-      const desiredDates = selectedDates.slice().sort();
-      // El grupo puede tener distinto tamaño; normalizamos creando/removiendo según fechas.
-      // Quitamos todos los del grupo y volvemos a insertar con los mismos parámetros.
-      scheduleItems = scheduleItems.filter((x) => !(x.title === editingItem.title && new Date(x.datetime).toISOString().slice(11, 16) === startHHmm));
-
-      const freshItems = desiredDates.map((date) => {
-        const startDatetime = new Date(`${date}T${startTime}`);
-        const id = `${Date.now().toString()}-${date}-${startTime}`;
-        return {
-          id,
-          title,
-          type: newType,
-          url: newType === 'url' ? (videoUrl || editingItem.url || '') : '',
-          fileName: newType === 'file' && file ? file.name : (newType === 'file' ? '' : ''),
-          datetime: startDatetime.toISOString(),
-          endDatetime: new Date(`${date}T${endTime}`).toISOString(),
-          createdAt: new Date().toISOString(),
-        };
-      });
-
-      scheduleItems.push(...freshItems);
-      if (file && newType === 'file') {
-        freshItems.forEach((it) => {
-          fileSources.set(it.id, URL.createObjectURL(file));
-        });
-      }
-
-      editingId = null;
-      saveSchedule();
-      renderSchedule();
-      updateActiveTransmission();
-      form.reset();
-      return;
-    }
-  }
 
   // Validación simple: hora fin debe ser mayor o igual a hora inicio.
   // (Asumimos mismo día por evento: si quieres cruzar medianoche, habría que ampliar el modelo.)
@@ -213,6 +142,7 @@ form.addEventListener('submit', (event) => {
     alert('La hora fin debe ser mayor o igual que la hora inicio.');
     return;
   }
+
 
   // Crea un ítem por cada fecha seleccionada.
   const newItems = selectedDates.map((date) => {
@@ -332,19 +262,9 @@ function renderSchedule() {
       ${item.type === 'file' && !fileSources.has(item.id) ? '<small>(adjunto disponible solo en esta sesión)</small>' : ''}
 
       <div class="schedule-actions">
-        <button type="button" class="edit-button" data-id="${item.id}">Editar</button>
         <button type="button" class="delete-button" data-id="${item.id}">Eliminar</button>
       </div>
     `;
-
-    const editButton = itemElement.querySelector('.edit-button');
-    if (editButton) {
-      editButton.addEventListener('click', () => {
-        const id = editButton.getAttribute('data-id');
-        if (!id) return;
-        startEditForItemId(id);
-      });
-    }
 
     const deleteButton = itemElement.querySelector('.delete-button');
     deleteButton.addEventListener('click', () => {
@@ -362,63 +282,6 @@ function renderSchedule() {
   });
 }
 
-function maybeUpdateNextProgramBanner(now = new Date()) {
-  if (!nextProgramBanner) return;
-
-  // Obtener programa activo en este instante
-  const activeItems = scheduleItems
-    .map((item) => ({
-      item,
-      start: new Date(item.datetime),
-      end: item.endDatetime ? new Date(item.endDatetime) : new Date(new Date(item.datetime).getTime() + 1000 * 60 * 60),
-    }))
-    .filter(({ start, end }) => start <= now && now < end)
-    .sort((a, b) => b.start - a.start);
-
-  const activeItem = activeItems.length > 0 ? activeItems[0].item : null;
-  if (!activeItem) {
-    nextProgramBanner.classList.add('hidden');
-    return;
-  }
-
-  const activeEnd = activeItem.endDatetime ? new Date(activeItem.endDatetime) : new Date(new Date(activeItem.datetime).getTime() + 1000 * 60 * 60);
-  const msToEnd = activeEnd.getTime() - now.getTime();
-
-  // Mostrar 5 min antes, ocultar 1 min después de que termine (ventana: -5min a +1min)
-  const showStartMs = 5 * 60 * 1000;
-  const hideAfterMs = 1 * 60 * 1000;
-
-  const shouldShow = msToEnd <= showStartMs && msToEnd >= -hideAfterMs;
-
-  if (!shouldShow) {
-    nextProgramBanner.classList.add('hidden');
-    return;
-  }
-
-  const nextItem = scheduleItems
-    .map((item) => ({
-      item,
-      start: new Date(item.datetime),
-    }))
-    .filter(({ start }) => start.getTime() >= activeEnd.getTime())
-    .sort((a, b) => a.start - b.start)[0]?.item;
-
-  const nextTitle = nextItem ? nextItem.title : '—';
-  nextProgramBanner.innerHTML = `A continuación: <span>${escapeHtml(nextTitle)}</span>`;
-  nextProgramBanner.classList.remove('hidden');
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '<')
-    .replaceAll('>', '>')
-    .replaceAll('"', '"')
-
-
-    .replaceAll("'", '&#039;');
-}
-
 function updateCurrentTime() {
   const now = new Date();
   const formatted = now.toLocaleTimeString('es-ES', {
@@ -429,56 +292,6 @@ function updateCurrentTime() {
   currentTimeDisplay.textContent = formatted;
 }
 
-function startEditForItemId(id) {
-  const item = scheduleItems.find((x) => x.id === id);
-  if (!item) return;
-
-  editingId = id;
-
-  // Cargar valores en el formulario
-  const titleInput = document.getElementById('title');
-  const videoUrlInput = document.getElementById('video-url');
-  const timeStartInput = document.getElementById('time-start');
-  const timeEndInput = document.getElementById('time-end');
-
-  if (titleInput) titleInput.value = item.title || '';
-  if (videoUrlInput) videoUrlInput.value = item.type === 'url' ? (item.url || '') : '';
-  if (timeStartInput) timeStartInput.value = new Date(item.datetime).toISOString().slice(11, 16);
-  if (timeEndInput) timeEndInput.value = new Date(item.endDatetime).toISOString().slice(11, 16);
-
-  // Fechas: por el diseño, el mismo contenido se replica en las fechas; aquí editamos todos los “detalles”.
-  // Tomamos todas las fechas que tengan el mismo título y hora de inicio en este formato de id/datetime.
-  // (Como cada ítem generado tiene datetime/endDatetime y comparte parámetros originales, agrupamos por título + hora inicio).
-  const startHHmm = new Date(item.datetime).toISOString().slice(11, 16);
-  const grouped = scheduleItems.filter((x) => {
-    const sameTitle = x.title === item.title;
-    const sameStart = new Date(x.datetime).toISOString().slice(11, 16) === startHHmm;
-    return sameTitle && sameStart;
-  });
-
-  const dates = grouped.map((x) => new Date(x.datetime).toISOString().slice(0, 10));
-  const uniqueDates = Array.from(new Set(dates));
-
-  const selectedDatesInput = document.getElementById('selected-dates');
-  if (selectedDatesInput) selectedDatesInput.value = uniqueDates.join(',');
-
-  const selectedDatesListEl = document.getElementById('selected-dates-list');
-  if (selectedDatesListEl) selectedDatesListEl.innerHTML = '';
-
-  // Reutiliza la lógica del picker: añadimos directamente al hidden y forzamos render manual de chips
-  if (selectedDatesListEl) {
-    uniqueDates.forEach((isoDate) => {
-      const chip = document.createElement('div');
-      chip.className = 'selected-date-chip';
-      chip.innerHTML = `
-        <span class="selected-date-text">${isoDate.split('-').reverse().join('/')}</span>
-        <button type="button" class="selected-date-remove" data-date="${isoDate}" aria-label="Eliminar fecha">✕</button>
-      `;
-      selectedDatesListEl.appendChild(chip);
-    });
-  }
-}
-
 function updateActiveTransmission() {
   const now = new Date();
   const hadChanges = cleanupPastItems(now);
@@ -486,13 +299,7 @@ function updateActiveTransmission() {
     renderSchedule();
   }
 
-  // Program-next banner (5 minutos antes)
-  // (Se actualiza en paralelo para que no dependa del tipo de reproductor)
-  maybeUpdateNextProgramBanner(now);
-
   const activeItems = scheduleItems
-
-
     .map((item) => ({
       item,
       start: new Date(item.datetime),
@@ -568,9 +375,6 @@ function createPlayerForItem(item, offsetSeconds = 0) {
 
     // Forzamos a que se intente reproducir cuando haya metadata.
     video.addEventListener('loadedmetadata', () => {
-      // Mantener audio activo al recargar/reiniciar reproductor.
-      video.muted = false;
-      video.volume = 1;
       if (offsetSeconds > 0 && offsetSeconds < video.duration) {
         video.currentTime = offsetSeconds;
       }
@@ -688,9 +492,10 @@ function createPlayerForUrl(url, offsetSeconds = 0) {
 
 function shareVideoLink(item) {
   if (!item.url) {
-    alert('No hay enlace de video disponible para compartir.');
+    alert('Parce, no hay enlace de video para compartir por aquí.');
     return;
   }
+
 
   const shareData = {
     title: item.title,
@@ -765,6 +570,91 @@ function extractYouTubeId(url) {
 function extractVimeoId(url) {
   const match = url.match(/(?:vimeo\.com\/)([0-9]+)/i);
   return match ? match[1] : '';
+}
+
+function setupTitleAutofill() {
+  if (!titleInput || !videoUrlInput) return;
+  if (!titleAutofillHint) return;
+
+  let lastHandledUrl = '';
+  let manualTitle = titleInput.value.trim().length > 0;
+
+  const markManual = () => {
+    manualTitle = true;
+  };
+
+  titleInput.addEventListener('input', markManual);
+
+  const setLoading = (loading) => {
+    if (!titleAutofillHint) return;
+    titleAutofillHint.textContent = loading
+      ? 'Buscando el título del video...'
+      : 'Si pegas un enlace, intentaremos poner el título automáticamente.';
+  };
+
+  const trySetTitleFromUrl = async () => {
+    const url = (videoUrlInput.value || '').trim();
+    if (!url || url === lastHandledUrl) return;
+    lastHandledUrl = url;
+
+    if (manualTitle) return;
+
+    setLoading(true);
+    titleInput.value = '';
+
+    try {
+      // YouTube oEmbed (sin API key)
+      const ytMatch = extractYouTubeId(url);
+      if (ytMatch) {
+        const api = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytMatch}`)}&format=json`;
+        const res = await fetch(api);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.title) {
+            titleInput.value = String(data.title);
+            manualTitle = true;
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Vimeo oEmbed
+      const vimeoMatch = extractVimeoId(url);
+      if (vimeoMatch) {
+        const api = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${vimeoMatch}`)}`;
+        const res = await fetch(api);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.title) {
+            titleInput.value = String(data.title);
+            manualTitle = true;
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Si no se pudo, mantenemos el título vacío para que el admin lo complete manual.
+    } catch (e) {
+      // Silent: no queremos bloquear el flujo.
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  let t = null;
+  videoUrlInput.addEventListener('input', () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => {
+      trySetTitleFromUrl();
+    }, 600);
+  });
+
+  // Si el admin pega el enlace y el título ya está vacío, intentamos una vez al salir del campo.
+  videoUrlInput.addEventListener('blur', () => {
+    trySetTitleFromUrl();
+  });
 }
 
 function initializeMultiDatePicker() {
